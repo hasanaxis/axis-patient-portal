@@ -1,0 +1,256 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+*.lcov
+.nyc_output
+
+# Production
+build/
+dist/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# Mobile
+*.ipa
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# iOS
+ios/Pods/
+ios/build/
+ios/*.xcworkspace/
+ios/*.xcuserstate
+
+# Android
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Docker
+.docker/
+
+# DICOM files (only keep samples in mock-data)
+*.dcm
+!mock-data/**/*.dcm
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.cert
+
+# Backup files
+*.backup
+*.bak
+
+# ===== HEALTHCARE APPLICATION SECURITY =====
+
+# Environment and Configuration Files
+.env*
+!.env.example
+config/local.json
+config/production.json
+config/staging.json
+config/secrets.json
+
+# Healthcare Data and Patient Information
+patient-data/
+test-data/
+exports/
+reports/
+uploads/
+downloads/
+
+# Database Files and Backups
+*.db
+*.sqlite
+*.sqlite3
+dev.db
+database/
+prisma/migrations/migration_lock.toml
+backup/
+dumps/
+
+# Authentication and Security
+auth/
+secrets/
+private-keys/
+public-keys/
+jwt/
+oauth/
+tokens/
+sessions/
+
+# API Keys and Secrets
+.secret
+.credentials
+api-keys.json
+service-account.json
+firebase-adminsdk-*.json
+
+# Healthcare Integration Files
+integration/logs/
+integration/cache/
+hl7/incoming/
+hl7/outgoing/
+hl7/processed/
+hl7/failed/
+
+# DICOM and Medical Images (except samples)
+dicom/
+images/
+*.dcm
+*.dicom
+!sample-data/**/*.dcm
+!mock-data/**/*.dcm
+
+# Twilio and SMS Configuration
+twilio-config.json
+sms-logs/
+phone-numbers.txt
+
+# Monitoring and Analytics
+analytics/
+metrics/
+monitoring/
+alerts/
+
+# Temporary and Cache Files
+cache/
+.cache/
+temp/
+tmp/
+*.tmp
+*.temp
+.parcel-cache/
+
+# System and Runtime Files
+.pid
+*.pid
+*.seed
+*.pid.lock
+pids/
+
+# Coverage and Testing
+coverage/
+.coverage
+.nyc_output
+test-results/
+junit.xml
+
+# Documentation Build
+docs/build/
+docs/.vuepress/dist/
+
+# Package Manager
+.npm
+.yarn-integrity
+yarn-error.log
+.pnp.*
+
+# Editor and IDE Files
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker and Containerization
+.docker/
+docker-compose.override.yml
+.dockerignore
+
+# Cloud and Deployment
+.vercel
+.netlify
+.firebase/
+.gcloud/
+terraform.tfstate*
+.terraform/
+
+# Mobile Development
+ios/Pods/
+ios/build/
+ios/*.xcworkspace/xcuserdata/
+ios/*.xcuserstate
+android/.gradle/
+android/build/
+android/app/build/
+android/captures/
+android/local.properties
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+
+# React Native
+metro.config.js.bak
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Next.js
+.next/
+out/
+
+# Miscellaneous
+*.tgz
+*.tar.gz
+.eslintcache

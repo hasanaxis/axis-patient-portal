@@ -1,0 +1,431 @@
+name: Visual Regression Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run visual regression tests nightly
+    - cron: '0 3 * * *'
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # Percy Visual Testing
+  percy-visual-tests:
+    name: Percy Visual Regression Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd frontend && npm ci
+
+    - name: Build application
+      run: |
+        cd frontend && npm run build
+
+    - name: Start application
+      run: |
+        cd frontend && npm start &
+        sleep 30
+      env:
+        CI: true
+        REACT_APP_API_URL: http://localhost:3001
+
+    - name: Start mock backend
+      run: |
+        cd frontend && npm run start:mock-api &
+        sleep 10
+
+    - name: Run Percy visual tests
+      run: |
+        cd frontend && npx percy exec -- npx playwright test --config=tests/visual-regression/visual-regression.config.js
+      env:
+        PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+        PERCY_BRANCH: ${{ github.head_ref || github.ref_name }}
+        PERCY_TARGET_BRANCH: main
+
+    - name: Upload Percy artifacts
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: percy-debug-logs
+        path: |
+          frontend/percy-debug.log
+          frontend/test-results/
+
+  # Chromatic Visual Testing for Storybook
+  chromatic-visual-tests:
+    name: Chromatic Storybook Visual Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Required for Chromatic
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd frontend && npm ci
+
+    - name: Build Storybook
+      run: |
+        cd frontend && npm run build-storybook
+
+    - name: Publish to Chromatic
+      uses: chromaui/action@v1
+      with:
+        projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+        workingDir: frontend
+        buildScriptName: build-storybook
+        exitZeroOnChanges: true
+        exitOnceUploaded: true
+        ignoreLastBuildOnBranch: main
+
+  # Cross-browser Visual Testing
+  cross-browser-visual:
+    name: Cross-browser Visual Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
+        viewport: 
+          - { width: 1920, height: 1080 }
+          - { width: 1366, height: 768 }
+          - { width: 768, height: 1024 }
+          - { width: 375, height: 667 }
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd frontend && npm ci
+
+    - name: Install Playwright browsers
+      run: |
+        cd frontend && npx playwright install ${{ matrix.browser }}
+
+    - name: Start application
+      run: |
+        cd frontend && npm start &
+        sleep 30
+
+    - name: Start mock backend
+      run: |
+        cd frontend && npm run start:mock-api &
+        sleep 10
+
+    - name: Run visual tests
+      run: |
+        cd frontend && npx playwright test \
+          --project=${{ matrix.browser }} \
+          --config=tests/visual-regression/visual-regression.config.js \
+          tests/visual-regression/visual.test.js
+      env:
+        VIEWPORT_WIDTH: ${{ matrix.viewport.width }}
+        VIEWPORT_HEIGHT: ${{ matrix.viewport.height }}
+
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: visual-test-results-${{ matrix.browser }}-${{ matrix.viewport.width }}x${{ matrix.viewport.height }}
+        path: |
+          frontend/test-results/
+          frontend/screenshots/
+
+  # Mobile Visual Testing
+  mobile-visual-tests:
+    name: Mobile Visual Regression Tests
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+
+    - name: Install mobile dependencies
+      run: |
+        cd mobile && npm ci
+
+    - name: Install iOS dependencies
+      run: |
+        cd mobile/ios && pod install
+
+    - name: Setup iOS Simulator
+      run: |
+        xcrun simctl create "iPhone 14" "iPhone 14" "iOS16.0"
+        xcrun simctl boot "iPhone 14"
+
+    - name: Build iOS app
+      run: |
+        cd mobile && npx react-native build-ios --configuration Debug
+
+    - name: Start Metro bundler
+      run: |
+        cd mobile && npx react-native start &
+        sleep 30
+
+    - name: Run mobile visual tests
+      run: |
+        cd mobile && npm run test:visual
+      env:
+        DETOX_CONFIGURATION: ios.sim.debug
+
+    - name: Upload mobile visual artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: mobile-visual-test-results
+        path: |
+          mobile/screenshots/
+          mobile/artifacts/
+
+  # Accessibility Visual Testing
+  accessibility-visual-tests:
+    name: Accessibility Visual Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd frontend && npm ci
+
+    - name: Start application
+      run: |
+        cd frontend && npm start &
+        sleep 30
+
+    - name: Run accessibility visual tests
+      run: |
+        cd frontend && npx playwright test tests/accessibility/visual-accessibility.test.js
+      env:
+        PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+        PERCY_BRANCH: ${{ github.head_ref || github.ref_name }}-accessibility
+
+    - name: Upload accessibility visual artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: accessibility-visual-results
+        path: |
+          frontend/accessibility-screenshots/
+          frontend/accessibility-reports/
+
+  # Performance Visual Testing
+  performance-visual-tests:
+    name: Performance Visual Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd frontend && npm ci
+
+    - name: Start application
+      run: |
+        cd frontend && npm start &
+        sleep 30
+
+    - name: Run performance visual tests
+      run: |
+        cd frontend && npx playwright test tests/performance/visual-performance.test.js
+      env:
+        PERFORMANCE_TESTING: true
+
+    - name: Upload performance visual artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: performance-visual-results
+        path: |
+          frontend/performance-screenshots/
+          frontend/lighthouse-reports/
+
+  # Visual Regression Report
+  visual-regression-report:
+    name: Generate Visual Regression Report
+    runs-on: ubuntu-latest
+    needs: [percy-visual-tests, chromatic-visual-tests, cross-browser-visual, mobile-visual-tests]
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: visual-test-artifacts
+
+    - name: Install report dependencies
+      run: |
+        npm install -g mustache html-pdf
+
+    - name: Generate visual regression report
+      run: |
+        node .github/scripts/generate-visual-report.js \
+          --artifacts-dir visual-test-artifacts \
+          --output visual-regression-report.html
+
+    - name: Upload consolidated report
+      uses: actions/upload-artifact@v4
+      with:
+        name: visual-regression-report
+        path: |
+          visual-regression-report.html
+          visual-regression-summary.json
+
+    - name: Comment visual regression summary on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          if (fs.existsSync('visual-regression-summary.json')) {
+            const summary = JSON.parse(fs.readFileSync('visual-regression-summary.json'));
+            
+            const comment = `## 👀 Visual Regression Test Results
+            
+            **Percy Tests**: ${summary.percy.status} (${summary.percy.changes} changes detected)
+            **Chromatic Tests**: ${summary.chromatic.status} (${summary.chromatic.stories} stories tested)
+            **Cross-browser Tests**: ${summary.crossBrowser.status} (${summary.crossBrowser.browsers} browsers tested)
+            **Mobile Tests**: ${summary.mobile.status} (${summary.mobile.platforms} platforms tested)
+            
+            ${summary.overall.status === 'FAILED' ? '❌ Visual changes detected - please review before merging.' : '✅ No visual regressions detected!'}
+            
+            **Percy Dashboard**: [View Changes](${summary.percy.buildUrl})
+            **Chromatic Library**: [View Stories](${summary.chromatic.storybookUrl})
+            
+            [View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          }
+
+    - name: Fail on visual regressions
+      run: |
+        if [ -f "visual-regression-summary.json" ]; then
+          status=$(jq -r '.overall.status' visual-regression-summary.json)
+          if [ "$status" = "FAILED" ]; then
+            echo "Visual regression tests failed"
+            exit 1
+          fi
+        fi
+
+  # Update visual baselines (manual trigger)
+  update-visual-baselines:
+    name: Update Visual Baselines
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        cd frontend && npm ci
+
+    - name: Start application
+      run: |
+        cd frontend && npm start &
+        sleep 30
+
+    - name: Update Percy baselines
+      run: |
+        cd frontend && npx percy exec -- npx playwright test \
+          --config=tests/visual-regression/visual-regression.config.js \
+          --update-snapshots
+      env:
+        PERCY_TOKEN: ${{ secrets.PERCY_TOKEN }}
+        PERCY_BRANCH: main
+
+    - name: Update Chromatic baselines
+      run: |
+        cd frontend && npx chromatic \
+          --project-token=${{ secrets.CHROMATIC_PROJECT_TOKEN }} \
+          --auto-accept-changes
+
+    - name: Commit updated baselines
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Update visual regression baselines"
+          git push
+        fi

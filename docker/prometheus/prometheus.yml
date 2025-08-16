@@ -1,0 +1,200 @@
+# Prometheus Configuration for Axis Imaging Healthcare Monitoring
+# Comprehensive metrics collection with healthcare-specific alerting
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'axis-imaging-production'
+    environment: 'production'
+    compliance: 'privacy-act-1988'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+      timeout: 10s
+      api_version: v2
+
+# Load alerting rules
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # Node Exporter for system metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: 
+        - 'node-exporter:9100'
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # Backend application metrics
+  - job_name: 'axis-backend'
+    ec2_sd_configs:
+      - region: ap-southeast-2
+        port: 5000
+        filters:
+          - name: 'tag:Name'
+            values: ['axis-imaging-backend-*']
+          - name: 'tag:Environment'
+            values: ['production']
+          - name: 'instance-state-name'
+            values: ['running']
+    relabel_configs:
+      - source_labels: [__meta_ec2_instance_id]
+        target_label: instance_id
+      - source_labels: [__meta_ec2_availability_zone]
+        target_label: availability_zone
+      - source_labels: [__meta_ec2_tag_Environment]
+        target_label: environment
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  # Frontend application metrics
+  - job_name: 'axis-frontend'
+    ec2_sd_configs:
+      - region: ap-southeast-2
+        port: 80
+        filters:
+          - name: 'tag:Name'
+            values: ['axis-imaging-frontend-*']
+          - name: 'tag:Environment'
+            values: ['production']
+          - name: 'instance-state-name'
+            values: ['running']
+    relabel_configs:
+      - source_labels: [__meta_ec2_instance_id]
+        target_label: instance_id
+      - source_labels: [__meta_ec2_availability_zone]
+        target_label: availability_zone
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # PostgreSQL metrics
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: 
+        - 'postgres-exporter:9187'
+    scrape_interval: 30s
+    metrics_path: /metrics
+    params:
+      auth_module: [axis_imaging]
+
+  # Redis metrics
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets:
+        - 'redis-exporter:9121'
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # HAProxy/Load Balancer metrics
+  - job_name: 'haproxy'
+    static_configs:
+      - targets:
+        - 'haproxy:8404'
+    scrape_interval: 15s
+    metrics_path: /stats
+
+  # cAdvisor for container metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets:
+        - 'cadvisor:8080'
+    scrape_interval: 15s
+    metrics_path: /metrics
+
+  # AWS CloudWatch metrics via exporter
+  - job_name: 'cloudwatch-exporter'
+    static_configs:
+      - targets:
+        - 'cloudwatch-exporter:9106'
+    scrape_interval: 60s
+    scrape_timeout: 55s
+    metrics_path: /metrics
+
+  # Blackbox exporter for endpoint monitoring
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://portal.axisimaging.com.au
+        - https://api.axisimaging.com.au/health
+        - https://portal.axisimaging.com.au/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # SSL certificate monitoring
+  - job_name: 'blackbox-ssl'
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets:
+        - portal.axisimaging.com.au:443
+        - api.axisimaging.com.au:443
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Healthcare-specific metrics from custom exporters
+  - job_name: 'healthcare-compliance'
+    static_configs:
+      - targets:
+        - 'compliance-exporter:8080'
+    scrape_interval: 60s
+    metrics_path: /metrics
+    honor_labels: true
+
+  # DICOM service metrics (if applicable)
+  - job_name: 'dicom-metrics'
+    static_configs:
+      - targets:
+        - 'dicom-exporter:9090'
+    scrape_interval: 30s
+    metrics_path: /metrics
+    honor_labels: true
+
+# Remote write to long-term storage (optional)
+remote_write:
+  - url: "https://prometheus-remote-write.axisimaging.com.au/api/v1/write"
+    queue_config:
+      max_samples_per_send: 1000
+      max_shards: 200
+      capacity: 2500
+    basic_auth:
+      username: prometheus
+      password_file: /etc/prometheus/remote_write_password
+    write_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'axis_.*|http_.*|up|probe_.*'
+        action: keep
+
+# Storage configuration
+storage:
+  tsdb:
+    retention.time: "30d"
+    retention.size: "50GB"

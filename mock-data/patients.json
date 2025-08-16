@@ -1,0 +1,56 @@
+{
+  "patients": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "userId": "user-001",
+      "firstName": "John",
+      "lastName": "Smith",
+      "dateOfBirth": "1980-05-15",
+      "phoneNumber": "+61412345678",
+      "email": "john.smith@example.com",
+      "medicareNumber": "2123456781",
+      "address": "123 Main St, Mickleham VIC 3064",
+      "emergencyContact": "+61498765432",
+      "referringGp": {
+        "id": "gp-001",
+        "firstName": "Dr. Sarah",
+        "lastName": "Johnson",
+        "practiceName": "Mickleham Medical Centre",
+        "providerNumber": "123456AB",
+        "phoneNumber": "+61393001234"
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440002",
+      "userId": "user-002",
+      "firstName": "Emma",
+      "lastName": "Wilson",
+      "dateOfBirth": "1992-08-22",
+      "phoneNumber": "+61423456789",
+      "email": "emma.wilson@example.com",
+      "medicareNumber": "5123456782",
+      "address": "456 Oak Ave, Craigieburn VIC 3064",
+      "emergencyContact": "+61487654321",
+      "referringGp": {
+        "id": "gp-002",
+        "firstName": "Dr. Michael",
+        "lastName": "Chen",
+        "practiceName": "Craigieburn Health Clinic",
+        "providerNumber": "234567CD",
+        "phoneNumber": "+61393002345"
+      }
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440003",
+      "userId": "user-003",
+      "firstName": "Robert",
+      "lastName": "Brown",
+      "dateOfBirth": "1975-12-10",
+      "phoneNumber": "+61434567890",
+      "email": "robert.brown@example.com",
+      "medicareNumber": "3123456783",
+      "address": "789 Pine Rd, Roxburgh Park VIC 3064",
+      "emergencyContact": "+61476543210"
+    }
+  ]
+}

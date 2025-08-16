@@ -1,0 +1,86 @@
+import { Modality, Priority, StudyStatus } from '@prisma/client';
+export interface StudySeedData {
+    studyInstanceUID: string;
+    studyId?: string;
+    accessionNumber: string;
+    studyDate: Date;
+    studyTime?: string;
+    studyDescription?: string;
+    modality: Modality;
+    bodyPartExamined?: string;
+    studyComments?: string;
+    clinicalHistory?: string;
+    requestedProcedure: string;
+    priority: Priority;
+    status: StudyStatus;
+    performingPhysician?: string;
+    referringPhysician?: string;
+    operatorName?: string;
+    stationName?: string;
+    manufacturerModel?: string;
+    numberOfSeries: number;
+    numberOfInstances: number;
+    studySize?: bigint;
+    patientNumber: string;
+    series: SeriesSeedData[];
+    radiologistId?: string;
+    technologistId?: string;
+}
+export interface SeriesSeedData {
+    seriesInstanceUID: string;
+    seriesNumber?: number;
+    seriesDate?: Date;
+    seriesTime?: string;
+    seriesDescription?: string;
+    modality: Modality;
+    bodyPartExamined?: string;
+    protocolName?: string;
+    seriesComments?: string;
+    sliceThickness?: number;
+    pixelSpacing?: string;
+    imageOrientation?: string;
+    imagePosition?: string;
+    acquisitionMatrix?: string;
+    kvp?: number;
+    exposureTime?: number;
+    xrayTubeCurrent?: number;
+    contrastAgent?: string;
+    scanOptions?: string;
+    numberOfInstances: number;
+    seriesSize?: bigint;
+    images: ImageSeedData[];
+}
+export interface ImageSeedData {
+    sopInstanceUID: string;
+    sopClassUID?: string;
+    instanceNumber?: number;
+    acquisitionDate?: Date;
+    acquisitionTime?: string;
+    imageComments?: string;
+    rows?: number;
+    columns?: number;
+    bitsAllocated?: number;
+    bitsStored?: number;
+    pixelRepresentation?: number;
+    photometricInterpretation?: string;
+    windowCenter?: string;
+    windowWidth?: string;
+    windowCenterWidthExplanation?: string;
+    pixelSpacing?: string;
+    sliceLocation?: number;
+    sliceThickness?: number;
+    imagePosition?: string;
+    imageOrientation?: string;
+    imageUrl: string;
+    thumbnailUrl?: string;
+    jpegUrl?: string;
+    fileSize?: bigint;
+    transferSyntax?: string;
+    imageQuality?: string;
+    lossy: boolean;
+    lossyMethod?: string;
+    metadata?: any;
+}
+export declare const studySeedData: StudySeedData[];
+export declare const additionalStudySeedData: Partial<StudySeedData>[];
+//# sourceMappingURL=studies.d.ts.map

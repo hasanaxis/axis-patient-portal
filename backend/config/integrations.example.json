@@ -1,0 +1,455 @@
+{
+  "integrationManager": {
+    "logLevel": "INFO",
+    "enableMetrics": true,
+    "healthCheckInterval": 30000,
+    "maxConcurrentConnections": 50,
+    "defaultTimeout": 30000,
+    "retryPolicy": {
+      "maxAttempts": 3,
+      "backoffMultiplier": 2,
+      "maxDelay": 30000
+    }
+  },
+  "integrations": [
+    {
+      "id": "sectra-pacs-production",
+      "name": "Sectra PACS Production",
+      "description": "Primary Sectra IDS7 PACS system for radiology imaging",
+      "type": "PACS",
+      "vendor": "Sectra AB",
+      "enabled": true,
+      "priority": 1,
+      "config": {
+        "host": "pacs.hospital.com.au",
+        "port": 11112,
+        "callingAET": "AXIS_IMAGING",
+        "calledAET": "SECTRA_PACS",
+        "timeout": 30000,
+        "maxConnections": 10,
+        "enableTLS": true,
+        "credentials": {
+          "username": "${SECTRA_USERNAME}",
+          "password": "${SECTRA_PASSWORD}"
+        }
+      },
+      "secttraConfig": {
+        "apiEndpoint": "https://pacs-api.hospital.com.au",
+        "apiVersion": "v2",
+        "worklistEndpoint": "https://pacs-api.hospital.com.au/worklist",
+        "viewerEndpoint": "https://viewer.hospital.com.au",
+        "enableWebViewer": true,
+        "thumbnailSupport": true,
+        "compressionLevel": 2,
+        "preferredTransferSyntax": [
+          "1.2.840.10008.1.2.4.90",
+          "1.2.840.10008.1.2.4.70",
+          "1.2.840.10008.1.2"
+        ],
+        "securityLevel": "ENHANCED",
+        "customHeaders": {
+          "X-API-Key": "${SECTRA_API_KEY}",
+          "X-Client-ID": "axis-imaging-portal",
+          "X-Facility-Code": "MAIN_HOSPITAL"
+        }
+      },
+      "dicomConfig": {
+        "supportedSOPClasses": [
+          "1.2.840.10008.5.1.4.1.1.2",
+          "1.2.840.10008.5.1.4.1.1.4",
+          "1.2.840.10008.5.1.4.1.1.12.1",
+          "1.2.840.10008.5.1.4.1.1.7",
+          "1.2.840.10008.5.1.4.1.1.88.11",
+          "1.2.840.10008.5.1.4.1.1.6.1",
+          "1.2.840.10008.5.1.4.1.1.1",
+          "1.2.840.10008.5.1.4.1.1.20"
+        ],
+        "maxPDUSize": 16384,
+        "enableCompression": true,
+        "asyncOperations": 1,
+        "networkTimeout": 60000,
+        "connectionPooling": {
+          "minConnections": 2,
+          "maxConnections": 20,
+          "idleTimeout": 300000,
+          "validationInterval": 30000
+        }
+      },
+      "retryPolicy": {
+        "maxAttempts": 3,
+        "backoffMultiplier": 2,
+        "maxDelay": 30000
+      },
+      "healthCheck": {
+        "interval": 30000,
+        "timeout": 5000,
+        "failureThreshold": 3
+      },
+      "monitoring": {
+        "enableMetrics": true,
+        "enableLogging": true,
+        "logLevel": "INFO",
+        "auditLogging": true
+      }
+    },
+    {
+      "id": "sectra-pacs-dr",
+      "name": "Sectra PACS Disaster Recovery",
+      "description": "Disaster recovery Sectra PACS system",
+      "type": "PACS",
+      "vendor": "Sectra AB",
+      "enabled": false,
+      "priority": 2,
+      "config": {
+        "host": "pacs-dr.hospital.com.au",
+        "port": 11112,
+        "callingAET": "AXIS_IMAGING",
+        "calledAET": "SECTRA_PACS_DR",
+        "timeout": 30000,
+        "maxConnections": 5,
+        "enableTLS": true,
+        "credentials": {
+          "username": "${SECTRA_DR_USERNAME}",
+          "password": "${SECTRA_DR_PASSWORD}"
+        }
+      },
+      "secttraConfig": {
+        "apiEndpoint": "https://pacs-dr-api.hospital.com.au",
+        "apiVersion": "v2",
+        "enableWebViewer": true,
+        "thumbnailSupport": true,
+        "securityLevel": "ENHANCED"
+      },
+      "dicomConfig": {
+        "supportedSOPClasses": [
+          "1.2.840.10008.5.1.4.1.1.2",
+          "1.2.840.10008.5.1.4.1.1.4"
+        ],
+        "maxPDUSize": 16384,
+        "enableCompression": true
+      },
+      "retryPolicy": {
+        "maxAttempts": 5,
+        "backoffMultiplier": 3,
+        "maxDelay": 60000
+      },
+      "healthCheck": {
+        "interval": 60000,
+        "timeout": 10000,
+        "failureThreshold": 5
+      },
+      "monitoring": {
+        "enableMetrics": true,
+        "enableLogging": true,
+        "logLevel": "WARN"
+      }
+    },
+    {
+      "id": "voyager-ris-production",
+      "name": "Voyager RIS Production",
+      "description": "Primary Voyager RIS system for radiology workflow",
+      "type": "RIS",
+      "vendor": "Carestream Health",
+      "enabled": true,
+      "priority": 1,
+      "config": {
+        "endpoint": "ris.hospital.com.au",
+        "protocol": "HL7",
+        "port": 2575,
+        "authentication": {
+          "type": "BASIC",
+          "credentials": {
+            "username": "${VOYAGER_USERNAME}",
+            "password": "${VOYAGER_PASSWORD}"
+          }
+        },
+        "timeout": 30000,
+        "retryAttempts": 3,
+        "enableTLS": true,
+        "hl7Config": {
+          "sendingApplication": "AXIS_IMAGING",
+          "sendingFacility": "MAIN_HOSPITAL",
+          "receivingApplication": "VOYAGER",
+          "receivingFacility": "RIS",
+          "messageType": "QRY",
+          "processingID": "P"
+        }
+      },
+      "voyagerConfig": {
+        "systemVersion": "7.6",
+        "departmentCode": "RAD",
+        "facilityCode": "MAIN",
+        "autoAcknowledge": true,
+        "messageEncoding": "UTF-8",
+        "fieldSeparator": "|",
+        "componentSeparator": "^",
+        "repetitionSeparator": "~",
+        "escapeCharacter": "\\",
+        "subComponentSeparator": "&",
+        "customMappings": {
+          "patientClass": "OUTPATIENT",
+          "defaultPriority": "ROUTINE",
+          "departmentMapping": {
+            "CT": "CT_DEPT",
+            "MR": "MR_DEPT",
+            "XR": "XR_DEPT",
+            "US": "US_DEPT"
+          }
+        }
+      },
+      "apiConfig": {
+        "baseURL": "https://ris-api.hospital.com.au",
+        "version": "v2",
+        "enableWebhooks": true,
+        "webhookSecret": "${VOYAGER_WEBHOOK_SECRET}",
+        "authentication": {
+          "type": "API_KEY",
+          "credentials": {
+            "apiKey": "${VOYAGER_API_KEY}"
+          }
+        }
+      },
+      "retryPolicy": {
+        "maxAttempts": 3,
+        "backoffMultiplier": 2,
+        "maxDelay": 30000
+      },
+      "healthCheck": {
+        "interval": 30000,
+        "timeout": 5000,
+        "failureThreshold": 3
+      },
+      "monitoring": {
+        "enableMetrics": true,
+        "enableLogging": true,
+        "logLevel": "INFO",
+        "auditLogging": true,
+        "hl7MessageLogging": true
+      }
+    },
+    {
+      "id": "voyager-ris-test",
+      "name": "Voyager RIS Test Environment",
+      "description": "Test environment for Voyager RIS integration testing",
+      "type": "RIS",
+      "vendor": "Carestream Health",
+      "enabled": false,
+      "priority": 3,
+      "config": {
+        "endpoint": "ris-test.hospital.com.au",
+        "protocol": "HL7",
+        "port": 2575,
+        "authentication": {
+          "type": "BASIC",
+          "credentials": {
+            "username": "${VOYAGER_TEST_USERNAME}",
+            "password": "${VOYAGER_TEST_PASSWORD}"
+          }
+        },
+        "timeout": 10000,
+        "retryAttempts": 1,
+        "enableTLS": false,
+        "hl7Config": {
+          "sendingApplication": "AXIS_IMAGING_TEST",
+          "sendingFacility": "TEST_FACILITY",
+          "receivingApplication": "VOYAGER_TEST",
+          "receivingFacility": "RIS_TEST",
+          "messageType": "QRY",
+          "processingID": "T"
+        }
+      },
+      "voyagerConfig": {
+        "systemVersion": "7.6",
+        "departmentCode": "RAD_TEST",
+        "facilityCode": "TEST",
+        "autoAcknowledge": true,
+        "messageEncoding": "UTF-8"
+      },
+      "retryPolicy": {
+        "maxAttempts": 1,
+        "backoffMultiplier": 1,
+        "maxDelay": 5000
+      },
+      "healthCheck": {
+        "interval": 60000,
+        "timeout": 10000,
+        "failureThreshold": 1
+      },
+      "monitoring": {
+        "enableMetrics": true,
+        "enableLogging": true,
+        "logLevel": "DEBUG"
+      }
+    }
+  ],
+  "environment": {
+    "production": {
+      "defaultTimeout": 30000,
+      "enableAuditLogging": true,
+      "enableEncryption": true,
+      "logLevel": "INFO",
+      "healthCheckInterval": 30000,
+      "maxRetryAttempts": 3
+    },
+    "staging": {
+      "defaultTimeout": 20000,
+      "enableAuditLogging": true,
+      "enableEncryption": true,
+      "logLevel": "DEBUG",
+      "healthCheckInterval": 60000,
+      "maxRetryAttempts": 2
+    },
+    "development": {
+      "defaultTimeout": 10000,
+      "enableAuditLogging": false,
+      "enableEncryption": false,
+      "logLevel": "DEBUG",
+      "healthCheckInterval": 120000,
+      "maxRetryAttempts": 1
+    },
+    "testing": {
+      "defaultTimeout": 5000,
+      "enableAuditLogging": false,
+      "enableEncryption": false,
+      "logLevel": "DEBUG",
+      "healthCheckInterval": 300000,
+      "maxRetryAttempts": 1,
+      "useMockProviders": true
+    }
+  },
+  "mockProviders": {
+    "enabled": false,
+    "pacsConfig": {
+      "simulateLatency": true,
+      "latencyRange": {
+        "min": 100,
+        "max": 2000
+      },
+      "errorRate": 0.02,
+      "simulateSlowConnection": false,
+      "mockDataSet": "comprehensive",
+      "enableProgressEvents": true,
+      "simulateConnectionIssues": false
+    },
+    "risConfig": {
+      "simulateLatency": true,
+      "latencyRange": {
+        "min": 100,
+        "max": 1500
+      },
+      "errorRate": 0.03,
+      "simulateHL7Issues": false,
+      "mockDataSet": "comprehensive",
+      "enableWebhooks": false,
+      "simulateWorkflowUpdates": true,
+      "generateReports": true
+    }
+  },
+  "security": {
+    "encryption": {
+      "algorithm": "AES-256-GCM",
+      "keyRotationInterval": 86400000,
+      "enableEncryptionAtRest": true,
+      "enableEncryptionInTransit": true
+    },
+    "authentication": {
+      "tokenExpirationTime": 3600000,
+      "enableMFA": true,
+      "enableCertificateAuth": true
+    },
+    "audit": {
+      "enableAuditLogging": true,
+      "auditLogRetention": 2555,
+      "enableTamperDetection": true,
+      "auditEventTypes": [
+        "AUTHENTICATION",
+        "AUTHORIZATION", 
+        "DATA_ACCESS",
+        "DATA_MODIFICATION",
+        "SYSTEM_ACCESS",
+        "CONFIGURATION_CHANGE"
+      ]
+    }
+  },
+  "monitoring": {
+    "metrics": {
+      "enableMetrics": true,
+      "metricsInterval": 30000,
+      "enablePerformanceMetrics": true,
+      "enableBusinessMetrics": true,
+      "retentionPeriod": 2592000000
+    },
+    "alerting": {
+      "enableAlerting": true,
+      "alertChannels": ["email", "slack", "webhook"],
+      "alertThresholds": {
+        "responseTime": 5000,
+        "errorRate": 0.1,
+        "connectionFailures": 3,
+        "messageQueueSize": 1000
+      }
+    },
+    "healthChecks": {
+      "enableHealthChecks": true,
+      "healthCheckInterval": 30000,
+      "healthCheckTimeout": 5000,
+      "enableDeepHealthChecks": true
+    }
+  },
+  "performance": {
+    "connectionPooling": {
+      "enablePooling": true,
+      "minConnections": 2,
+      "maxConnections": 20,
+      "idleTimeout": 300000,
+      "validationInterval": 30000
+    },
+    "caching": {
+      "enableCaching": true,
+      "cacheTTL": 300000,
+      "maxCacheSize": 1000,
+      "cacheTypes": ["patients", "studies", "orders", "reports"]
+    },
+    "messageQueuing": {
+      "enableQueuing": true,
+      "maxQueueSize": 10000,
+      "processingConcurrency": 5,
+      "deadLetterQueue": true
+    }
+  },
+  "compliance": {
+    "dataProtection": {
+      "enablePHIProtection": true,
+      "enableDataMasking": true,
+      "enableRightToForget": true,
+      "dataRetentionPeriod": 2555
+    },
+    "regulations": {
+      "enablePrivacyAct1988": true,
+      "enableHIPAACompliance": true,
+      "enableGDPRCompliance": false,
+      "enableSOX": false
+    },
+    "auditCompliance": {
+      "enableComplianceAuditing": true,
+      "complianceReportInterval": 86400000,
+      "auditTrailIntegrity": true
+    }
+  },
+  "backup": {
+    "enableBackup": true,
+    "backupInterval": 86400000,
+    "backupRetention": 2555,
+    "backupEncryption": true,
+    "backupLocation": "s3://axis-imaging-backups/",
+    "enableCrossRegionReplication": true
+  },
+  "disaster_recovery": {
+    "enableDR": true,
+    "drSite": "ap-southeast-4",
+    "rto": 14400000,
+    "rpo": 900000,
+    "enableAutomaticFailover": false,
+    "drTestInterval": 2592000000
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "name": "axis-imaging-patient-portal",
+  "version": "1.0.0",
+  "description": "Comprehensive patient portal for Axis Imaging with secure medical record access",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "mobile",
+    "shared"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:mobile\"",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:mobile": "npm run start --workspace=mobile",
+    "build": "npm run build --workspaces",
+    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:mobile:ios": "npm run build:ios --workspace=mobile",
+    "build:mobile:android": "npm run build:android --workspace=mobile",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "npm run start --workspace=backend",
+    "start:frontend": "npm run start --workspace=frontend",
+    "test": "npm run test --workspaces",
+    "test:unit": "npm run test:unit --workspaces",
+    "test:integration": "npm run test:integration --workspace=backend && npm run test:e2e --workspace=frontend",
+    "test:e2e": "npm run test:e2e --workspace=frontend && npm run test:e2e --workspace=mobile",
+    "test:coverage": "npm run test:coverage --workspaces",
+    "test:accessibility": "npm run test:accessibility --workspace=frontend",
+    "test:load": "cd testing/uat/test-cases && artillery run load-testing.yml",
+    "test:security": "npm run security:audit && npm run security:snyk",
+    "lint": "npm run lint --workspaces",
+    "lint:fix": "npm run lint:fix --workspaces",
+    "format": "npm run format --workspaces",
+    "format:check": "npm run format:check --workspaces",
+    "type-check": "npm run type-check --workspaces",
+    "security:audit": "npm audit --audit-level moderate && npm audit --audit-level moderate --workspaces",
+    "security:snyk": "snyk test --severity-threshold=medium",
+    "security:scan": "npm run security:audit && npm run security:snyk && npm run security:secrets",
+    "security:secrets": "detect-secrets scan --all-files",
+    "db:migrate": "npm run db:migrate --workspace=backend",
+    "db:seed": "npm run db:seed --workspace=backend",
+    "db:reset": "npm run db:reset --workspace=backend",
+    "db:studio": "npm run db:studio --workspace=backend",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up",
+    "docker:prod": "docker-compose -f docker-compose.prod.yml up",
+    "setup": "npm run setup:deps && npm run setup:db && npm run setup:env",
+    "setup:deps": "npm install && npm install --workspaces",
+    "setup:db": "npm run db:migrate && npm run db:seed",
+    "setup:env": "cp .env.example .env && cp backend/.env.example backend/.env && cp frontend/.env.example frontend/.env",
+    "clean": "npm run clean:deps && npm run clean:build",
+    "clean:deps": "rm -rf node_modules && npm exec --workspaces -- rm -rf node_modules",
+    "clean:build": "npm run clean:build --workspaces",
+    "pre-commit": "npm run lint && npm run type-check && npm run test:unit",
+    "pre-push": "npm run test && npm run security:scan",
+    "deploy:staging": "npm run build && docker build -t axis-imaging-staging .",
+    "deploy:prod": "npm run build && npm run test && docker build -t axis-imaging-prod .",
+    "docs:generate": "npm run docs:generate --workspaces",
+    "docs:serve": "cd docs && python -m http.server 8080",
+    "monitor:logs": "docker logs -f axis-imaging-backend",
+    "monitor:health": "curl -f http://localhost:3001/health && curl -f http://localhost:3000/health"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^17.6.7",
+    "@commitlint/config-conventional": "^17.6.7",
+    "@types/node": "^20.11.0",
+    "artillery": "^2.0.0",
+    "concurrently": "^8.2.2",
+    "husky": "^8.0.3",
+    "lint-staged": "^13.2.3",
+    "prettier": "^3.0.0",
+    "snyk": "^1.1200.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged && npm run type-check",
+      "pre-push": "npm run test:unit && npm run security:audit",
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "keywords": [
+    "healthcare",
+    "medical",
+    "patient-portal",
+    "radiology",
+    "dicom",
+    "imaging",
+    "react",
+    "nodejs",
+    "typescript",
+    "prisma",
+    "postgresql",
+    "axis-imaging"
+  ],
+  "author": "Axis Imaging Development Team",
+  "license": "PROPRIETARY",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/axis-imaging/patient-portal.git"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  }
+}

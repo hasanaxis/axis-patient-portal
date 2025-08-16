@@ -1,0 +1,114 @@
+{
+  "scans": [
+    {
+      "id": "scan-001",
+      "patientId": "550e8400-e29b-41d4-a716-446655440001",
+      "scanType": "XRAY",
+      "bodyPart": "Chest",
+      "performedAt": "2024-01-15T10:30:00Z",
+      "performedBy": "Tech. James Miller",
+      "studyInstanceUID": "1.2.840.113619.2.55.3.604688119.969.1389872804.114.4",
+      "seriesInstanceUID": "1.2.840.113619.2.55.3.604688119.969.1389872804.114.4.1",
+      "accessionNumber": "ACC20240115001",
+      "modality": "DX",
+      "description": "Chest PA and Lateral",
+      "numberOfImages": 2,
+      "report": {
+        "id": "report-001",
+        "findings": "The lungs are clear. No focal consolidation, pleural effusion or pneumothorax. The cardiac silhouette is normal in size. The mediastinal contours are unremarkable.",
+        "impression": "No acute cardiopulmonary process.",
+        "status": "APPROVED",
+        "approvedAt": "2024-01-15T14:00:00Z",
+        "radiologist": "Dr. Robert Anderson"
+      }
+    },
+    {
+      "id": "scan-002",
+      "patientId": "550e8400-e29b-41d4-a716-446655440001",
+      "scanType": "CT",
+      "bodyPart": "Abdomen",
+      "performedAt": "2024-01-10T14:15:00Z",
+      "performedBy": "Tech. Sarah White",
+      "studyInstanceUID": "1.2.840.113619.2.55.3.604688119.969.1389872804.115.5",
+      "seriesInstanceUID": "1.2.840.113619.2.55.3.604688119.969.1389872804.115.5.1",
+      "accessionNumber": "ACC20240110002",
+      "modality": "CT",
+      "description": "CT Abdomen with contrast",
+      "numberOfImages": 150,
+      "report": {
+        "id": "report-002",
+        "findings": "The liver, spleen, pancreas, and adrenal glands appear normal. No focal hepatic lesions. The gallbladder is unremarkable. The kidneys enhance symmetrically without hydronephrosis or stones.",
+        "impression": "Normal CT examination of the abdomen.",
+        "recommendations": "No follow-up required.",
+        "status": "APPROVED",
+        "approvedAt": "2024-01-10T16:30:00Z",
+        "radiologist": "Dr. Emily Thompson"
+      }
+    },
+    {
+      "id": "scan-003",
+      "patientId": "550e8400-e29b-41d4-a716-446655440002",
+      "scanType": "ULTRASOUND",
+      "bodyPart": "Abdomen",
+      "performedAt": "2024-01-12T09:00:00Z",
+      "performedBy": "Sonographer Lisa Chen",
+      "studyInstanceUID": "1.2.840.113619.2.55.3.604688119.969.1389872804.116.6",
+      "seriesInstanceUID": "1.2.840.113619.2.55.3.604688119.969.1389872804.116.6.1",
+      "accessionNumber": "ACC20240112003",
+      "modality": "US",
+      "description": "Abdominal Ultrasound",
+      "numberOfImages": 20,
+      "report": {
+        "id": "report-003",
+        "findings": "The liver is normal in size and echogenicity. No focal lesions identified. The gallbladder is normal without stones or wall thickening. The common bile duct measures 3mm. The pancreas is partially visualized and appears normal.",
+        "impression": "Normal abdominal ultrasound.",
+        "status": "APPROVED",
+        "approvedAt": "2024-01-12T11:00:00Z",
+        "radiologist": "Dr. Michael Park"
+      }
+    },
+    {
+      "id": "scan-004",
+      "patientId": "550e8400-e29b-41d4-a716-446655440002",
+      "scanType": "XRAY",
+      "bodyPart": "Left Knee",
+      "performedAt": "2024-01-08T15:45:00Z",
+      "performedBy": "Tech. David Brown",
+      "studyInstanceUID": "1.2.840.113619.2.55.3.604688119.969.1389872804.117.7",
+      "seriesInstanceUID": "1.2.840.113619.2.55.3.604688119.969.1389872804.117.7.1",
+      "accessionNumber": "ACC20240108004",
+      "modality": "DX",
+      "description": "Left Knee AP and Lateral",
+      "numberOfImages": 2,
+      "report": {
+        "id": "report-004",
+        "findings": "No fracture or dislocation. Mild joint space narrowing of the medial compartment with small marginal osteophytes consistent with mild osteoarthritis. No joint effusion.",
+        "impression": "Mild osteoarthritis of the left knee. No acute abnormality.",
+        "status": "APPROVED",
+        "approvedAt": "2024-01-08T17:00:00Z",
+        "radiologist": "Dr. Jennifer Lee"
+      }
+    },
+    {
+      "id": "scan-005",
+      "patientId": "550e8400-e29b-41d4-a716-446655440003",
+      "scanType": "MRI",
+      "bodyPart": "Brain",
+      "performedAt": "2024-01-05T11:00:00Z",
+      "performedBy": "Tech. Amanda Garcia",
+      "studyInstanceUID": "1.2.840.113619.2.55.3.604688119.969.1389872804.118.8",
+      "seriesInstanceUID": "1.2.840.113619.2.55.3.604688119.969.1389872804.118.8.1",
+      "accessionNumber": "ACC20240105005",
+      "modality": "MR",
+      "description": "MRI Brain without contrast",
+      "numberOfImages": 200,
+      "report": {
+        "id": "report-005",
+        "findings": "No acute intracranial abnormality. The ventricles and sulci are normal in size and configuration. No mass, midline shift, or abnormal enhancement. The major intracranial flow voids are preserved.",
+        "impression": "Normal MRI of the brain.",
+        "status": "PENDING",
+        "radiologist": "Dr. Steven Martinez"
+      }
+    }
+  ]
+}

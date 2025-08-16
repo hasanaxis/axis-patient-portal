@@ -1,0 +1,115 @@
+{
+  "appointments": [
+    {
+      "id": "apt-001",
+      "patientId": "550e8400-e29b-41d4-a716-446655440001",
+      "scanType": "XRAY",
+      "scheduledAt": "2024-01-20T10:00:00Z",
+      "duration": 15,
+      "status": "SCHEDULED",
+      "notes": "Follow-up chest X-ray",
+      "reminderSent": false
+    },
+    {
+      "id": "apt-002",
+      "patientId": "550e8400-e29b-41d4-a716-446655440001",
+      "scanType": "CT",
+      "scheduledAt": "2024-01-25T14:30:00Z",
+      "duration": 30,
+      "status": "CONFIRMED",
+      "notes": "CT Head - please fast for 4 hours prior",
+      "reminderSent": true
+    },
+    {
+      "id": "apt-003",
+      "patientId": "550e8400-e29b-41d4-a716-446655440002",
+      "scanType": "ULTRASOUND",
+      "scheduledAt": "2024-01-22T09:15:00Z",
+      "duration": 30,
+      "status": "SCHEDULED",
+      "notes": "Thyroid ultrasound",
+      "reminderSent": false
+    },
+    {
+      "id": "apt-004",
+      "patientId": "550e8400-e29b-41d4-a716-446655440002",
+      "scanType": "DEXA",
+      "scheduledAt": "2024-02-01T11:00:00Z",
+      "duration": 20,
+      "status": "SCHEDULED",
+      "notes": "Bone density scan",
+      "reminderSent": false
+    },
+    {
+      "id": "apt-005",
+      "patientId": "550e8400-e29b-41d4-a716-446655440003",
+      "scanType": "MRI",
+      "scheduledAt": "2024-01-18T13:00:00Z",
+      "duration": 45,
+      "status": "COMPLETED",
+      "notes": "MRI Lumbar spine completed",
+      "reminderSent": true
+    },
+    {
+      "id": "apt-006",
+      "patientId": "550e8400-e29b-41d4-a716-446655440003",
+      "scanType": "XRAY",
+      "scheduledAt": "2024-01-15T08:30:00Z",
+      "duration": 15,
+      "status": "CANCELLED",
+      "notes": "Patient cancelled - to be rescheduled",
+      "reminderSent": false
+    }
+  ],
+  "timeSlots": [
+    {
+      "date": "2024-01-20",
+      "scanType": "XRAY",
+      "availableSlots": [
+        "08:00", "08:15", "08:30", "08:45",
+        "09:00", "09:15", "09:30", "09:45",
+        "10:30", "10:45",
+        "11:00", "11:15", "11:30", "11:45",
+        "14:00", "14:15", "14:30", "14:45",
+        "15:00", "15:15", "15:30", "15:45",
+        "16:00", "16:15", "16:30"
+      ]
+    },
+    {
+      "date": "2024-01-20",
+      "scanType": "CT",
+      "availableSlots": [
+        "08:00", "08:30", 
+        "09:00", "09:30",
+        "10:00", "10:30",
+        "11:00", "11:30",
+        "14:00", "14:30",
+        "15:00", "15:30",
+        "16:00"
+      ]
+    },
+    {
+      "date": "2024-01-20",
+      "scanType": "ULTRASOUND",
+      "availableSlots": [
+        "08:00", "08:30", 
+        "09:00", "09:30",
+        "10:00", "10:30",
+        "11:00", "11:30",
+        "13:00", "13:30",
+        "14:00", "14:30",
+        "15:00", "15:30"
+      ]
+    },
+    {
+      "date": "2024-01-20",
+      "scanType": "MRI",
+      "availableSlots": [
+        "08:00", "09:00",
+        "10:00", "11:00",
+        "13:00", "14:00",
+        "15:00", "16:00"
+      ]
+    }
+  ]
+}

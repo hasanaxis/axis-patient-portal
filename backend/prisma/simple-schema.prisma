@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ===== SIMPLE MODELS FOR DEVELOPMENT =====
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  firstName   String
+  lastName    String
+  phoneNumber String   @unique
+  passwordHash String
+  isVerified  Boolean  @default(false)
+  role        String   @default("PATIENT") // PATIENT, ADMIN, STAFF
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  patient     Patient?
+  sessions    Session[]
+}
+
+model Patient {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  patientNumber  String   @unique
+  dateOfBirth    DateTime
+  gender         String?
+  medicareNumber String?
+  ihi            String?
+  
+  // Address
+  streetAddress  String?
+  suburb         String?
+  state          String?
+  postcode       String?
+  country        String   @default("Australia")
+  
+  // Medical info (simplified for SQLite)
+  allergies      String?  // JSON string
+  medications    String?  // JSON string
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relations
+  user           User     @relation(fields: [userId], references: [id])
+  studies        Study[]
+}
+
+model Study {
+  id                String   @id @default(cuid())
+  patientId         String
+  studyInstanceUID  String   @unique
+  accessionNumber   String   @unique
+  studyDate         DateTime
+  studyDescription  String
+  modality          String   // XR, CT, MRI, US
+  bodyPartExamined  String
+  status            String   @default("COMPLETED") // SCHEDULED, IN_PROGRESS, COMPLETED
+  priority          String   @default("ROUTINE") // ROUTINE, URGENT, STAT
+  
+  // Additional info
+  referringPhysician String?
+  performingPhysician String?
+  institutionName    String?
+  numberOfSeries     Int     @default(1)
+  numberOfInstances  Int     @default(1)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  patient           Patient  @relation(fields: [patientId], references: [id])
+  report            Report?
+  series            Series[]
+}
+
+model Series {
+  id               String  @id @default(cuid())
+  studyId          String
+  seriesInstanceUID String @unique
+  seriesNumber     Int
+  seriesDescription String?
+  modality         String
+  numberOfInstances Int    @default(1)
+  
+  createdAt        DateTime @default(now())
+  
+  // Relations
+  study            Study    @relation(fields: [studyId], references: [id])
+  images           Image[]
+}
+
+model Image {
+  id               String @id @default(cuid())
+  seriesId         String
+  sopInstanceUID   String @unique
+  instanceNumber   Int
+  imageUrl         String
+  thumbnailUrl     String?
+  
+  createdAt        DateTime @default(now())
+  
+  // Relations
+  series           Series   @relation(fields: [seriesId], references: [id])
+}
+
+model Report {
+  id              String   @id @default(cuid())
+  studyId         String   @unique
+  reportNumber    String   @unique
+  radiologistId   String?
+  
+  // Report content
+  clinicalHistory String?
+  technique       String?
+  findings        String
+  impression      String
+  recommendations String?
+  
+  priority        String   @default("ROUTINE")
+  status          String   @default("DRAFT") // DRAFT, PRELIMINARY, FINAL
+  isCritical      Boolean  @default(false)
+  
+  // Timestamps
+  dictatedAt      DateTime?
+  verifiedAt      DateTime?
+  approvedAt      DateTime?
+  sentToReferrerAt DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  study           Study    @relation(fields: [studyId], references: [id])
+}
+
+model Session {
+  id           String    @id @default(cuid())
+  userId       String
+  token        String    @unique
+  refreshToken String?   @unique
+  expiresAt    DateTime
+  isActive     Boolean   @default(true)
+  ipAddress    String?
+  userAgent    String?
+  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  // Relations
+  user         User      @relation(fields: [userId], references: [id])
+}

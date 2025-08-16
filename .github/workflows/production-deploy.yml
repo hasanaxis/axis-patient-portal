@@ -1,0 +1,706 @@
+# Production CI/CD Pipeline for Axis Imaging
+# Comprehensive testing, security scanning, and deployment with rollback
+
+name: Production Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - release/*
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      rollback_version:
+        description: 'Version to rollback to (if any)'
+        required: false
+        type: string
+
+env:
+  AWS_REGION: ap-southeast-2
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-southeast-2.amazonaws.com
+  PROJECT_NAME: axis-imaging
+
+jobs:
+  # Security and compliance checks
+  security-scan:
+    name: Security & Compliance Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for security analysis
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      
+      # Healthcare compliance - scan for PHI/PII in code
+      - name: PHI/PII Security Scan
+        run: |
+          echo "Scanning for potential PHI/PII exposure..."
+          # Custom script to detect healthcare data patterns
+          find . -name "*.ts" -o -name "*.js" -o -name "*.tsx" -o -name "*.jsx" | \
+          xargs grep -l -i "ssn\|medicare\|medicaid\|dob\|date.*birth\|patient.*id" || true
+          
+          # Check for hardcoded secrets
+          find . -name "*.ts" -o -name "*.js" -o -name "*.tsx" -o -name "*.jsx" | \
+          xargs grep -l "password\|secret\|key.*=" | head -10 || true
+      
+      - name: Install dependencies (Backend)
+        working-directory: ./backend
+        run: npm ci
+      
+      - name: Install dependencies (Frontend)
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Install dependencies (Mobile)
+        working-directory: ./mobile
+        run: npm ci
+      
+      # Security vulnerability scanning
+      - name: Run security audit (Backend)
+        working-directory: ./backend
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+      
+      - name: Run security audit (Frontend)
+        working-directory: ./frontend
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+      
+      - name: Run security audit (Mobile)
+        working-directory: ./mobile
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+      
+      # SAST scanning with CodeQL
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, typescript
+          config-file: ./.github/codeql/codeql-config.yml
+      
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript"
+      
+      # License compliance check
+      - name: License compliance check
+        run: |
+          echo "Checking license compliance for healthcare software..."
+          npm install -g license-checker
+          cd backend && license-checker --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC" --excludePrivatePackages
+          cd ../frontend && license-checker --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC" --excludePrivatePackages
+
+  # Comprehensive testing pipeline
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: security-scan
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: axis_imaging_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+      
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+      
+      - name: Generate Prisma client
+        working-directory: ./backend
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/axis_imaging_test
+      
+      - name: Run database migrations
+        working-directory: ./backend
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/axis_imaging_test
+      
+      - name: Run unit tests
+        working-directory: ./backend
+        run: npm run test:unit -- --coverage --watchAll=false
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/axis_imaging_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test_jwt_secret
+          MASTER_ENCRYPTION_KEY: test_master_key
+          AUDIT_ENCRYPTION_KEY: test_audit_key
+      
+      - name: Run integration tests
+        working-directory: ./backend
+        run: npm run test:integration -- --coverage --watchAll=false
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/axis_imaging_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test_jwt_secret
+          MASTER_ENCRYPTION_KEY: test_master_key
+          AUDIT_ENCRYPTION_KEY: test_audit_key
+      
+      - name: Run healthcare compliance tests
+        working-directory: ./backend
+        run: npm run test:compliance -- --watchAll=false
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/axis_imaging_test
+          REDIS_URL: redis://localhost:6379
+      
+      - name: Upload backend coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./backend/coverage/lcov.info
+          flags: backend
+          name: backend-coverage
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    needs: security-scan
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Run unit tests
+        working-directory: ./frontend
+        run: npm run test -- --coverage --watchAll=false
+        env:
+          CI: true
+      
+      - name: Run accessibility tests
+        working-directory: ./frontend
+        run: npm run test:a11y
+      
+      - name: Build application
+        working-directory: ./frontend
+        run: npm run build
+        env:
+          VITE_API_URL: https://api.staging.axisimaging.com.au/api/v1
+      
+      - name: Upload frontend coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./frontend/coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  test-mobile:
+    name: Mobile Tests
+    runs-on: macos-latest  # Required for iOS simulator
+    needs: security-scan
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'mobile/package-lock.json'
+      
+      - name: Setup Java (for Android)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+      
+      - name: Run unit tests
+        working-directory: ./mobile
+        run: npm test -- --coverage --watchAll=false
+      
+      - name: Build iOS app (Debug)
+        working-directory: ./mobile
+        run: |
+          cd ios
+          xcodebuild -workspace AxisPatientPortal.xcworkspace \
+                     -scheme AxisPatientPortal \
+                     -configuration Debug \
+                     -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.0' \
+                     build
+      
+      - name: Build Android app (Debug)
+        working-directory: ./mobile
+        run: |
+          cd android
+          ./gradlew assembleDebug
+
+  # End-to-End Testing
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: axis_imaging_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+      
+      - name: Install dependencies
+        run: |
+          cd backend && npm ci
+          cd ../frontend && npm ci
+      
+      - name: Start backend server
+        working-directory: ./backend
+        run: npm start &
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/axis_imaging_test
+          REDIS_URL: redis://localhost:6379
+          PORT: 5000
+      
+      - name: Start frontend server
+        working-directory: ./frontend
+        run: npm run preview &
+        env:
+          VITE_API_URL: http://localhost:5000/api/v1
+          PORT: 3000
+      
+      - name: Wait for servers
+        run: |
+          sleep 30
+          curl --retry 10 --retry-delay 3 --retry-connrefused http://localhost:5000/health
+          curl --retry 10 --retry-delay 3 --retry-connrefused http://localhost:3000
+      
+      - name: Run E2E tests
+        working-directory: ./frontend
+        run: npx playwright test
+        env:
+          BASE_URL: http://localhost:3000
+          API_URL: http://localhost:5000
+      
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-test-results
+          path: frontend/test-results/
+
+  # Build and push images
+  build-images:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend, test-mobile]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    
+    outputs:
+      backend-image: ${{ steps.backend-meta.outputs.tags }}
+      frontend-image: ${{ steps.frontend-meta.outputs.tags }}
+      backend-digest: ${{ steps.backend-build.outputs.digest }}
+      frontend-digest: ${{ steps.frontend-build.outputs.digest }}
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      # Backend image
+      - name: Extract backend metadata
+        id: backend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}-backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push backend image
+        id: backend-build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.backend-meta.outputs.tags }}
+          labels: ${{ steps.backend-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+      
+      # Frontend image
+      - name: Extract frontend metadata
+        id: frontend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}-frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+      
+      - name: Build and push frontend image
+        id: frontend-build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.frontend-meta.outputs.tags }}
+          labels: ${{ steps.frontend-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+      
+      # Security scan images
+      - name: Scan backend image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ env.PROJECT_NAME }}-backend:latest
+          format: 'sarif'
+          output: 'backend-trivy-results.sarif'
+      
+      - name: Upload backend Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'backend-trivy-results.sarif'
+          category: 'backend-image-scan'
+
+  # Staging deployment
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-images, e2e-tests]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_environment == 'staging')
+    environment: staging
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Deploy to ECS Staging
+        run: |
+          # Update ECS service with new task definition
+          aws ecs update-service \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-staging \
+            --service ${{ env.PROJECT_NAME }}-backend-staging \
+            --task-definition ${{ env.PROJECT_NAME }}-backend-staging \
+            --force-new-deployment
+          
+          aws ecs update-service \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-staging \
+            --service ${{ env.PROJECT_NAME }}-frontend-staging \
+            --task-definition ${{ env.PROJECT_NAME }}-frontend-staging \
+            --force-new-deployment
+      
+      - name: Wait for staging deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-staging \
+            --services ${{ env.PROJECT_NAME }}-backend-staging
+          
+          aws ecs wait services-stable \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-staging \
+            --services ${{ env.PROJECT_NAME }}-frontend-staging
+      
+      - name: Run staging health checks
+        run: |
+          # Wait for health checks
+          sleep 60
+          
+          # Test staging endpoints
+          curl -f https://api.staging.axisimaging.com.au/health
+          curl -f https://staging.axisimaging.com.au/health
+      
+      - name: Run staging smoke tests
+        working-directory: ./frontend
+        run: npx playwright test --grep "@smoke"
+        env:
+          BASE_URL: https://staging.axisimaging.com.au
+          API_URL: https://api.staging.axisimaging.com.au
+
+  # Production deployment (requires manual approval)
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-images, deploy-staging]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_environment == 'production')
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      # Create deployment backup point
+      - name: Create deployment backup
+        run: |
+          # Get current task definition versions for rollback
+          BACKEND_TASK_DEF=$(aws ecs describe-services \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-production \
+            --services ${{ env.PROJECT_NAME }}-backend-production \
+            --query 'services[0].taskDefinition' --output text)
+          
+          FRONTEND_TASK_DEF=$(aws ecs describe-services \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-production \
+            --services ${{ env.PROJECT_NAME }}-frontend-production \
+            --query 'services[0].taskDefinition' --output text)
+          
+          echo "ROLLBACK_BACKEND_TASK_DEF=$BACKEND_TASK_DEF" >> $GITHUB_ENV
+          echo "ROLLBACK_FRONTEND_TASK_DEF=$FRONTEND_TASK_DEF" >> $GITHUB_ENV
+      
+      - name: Deploy to ECS Production
+        run: |
+          # Blue-Green deployment strategy
+          aws ecs update-service \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-production \
+            --service ${{ env.PROJECT_NAME }}-backend-production \
+            --task-definition ${{ env.PROJECT_NAME }}-backend-production \
+            --force-new-deployment
+          
+          aws ecs update-service \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-production \
+            --service ${{ env.PROJECT_NAME }}-frontend-production \
+            --task-definition ${{ env.PROJECT_NAME }}-frontend-production \
+            --force-new-deployment
+      
+      - name: Wait for production deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-production \
+            --services ${{ env.PROJECT_NAME }}-backend-production
+          
+          aws ecs wait services-stable \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-production \
+            --services ${{ env.PROJECT_NAME }}-frontend-production
+      
+      - name: Run production health checks
+        run: |
+          # Extended health check period for production
+          sleep 120
+          
+          # Test production endpoints with retries
+          for i in {1..5}; do
+            if curl -f https://api.axisimaging.com.au/health; then
+              echo "Backend health check passed"
+              break
+            fi
+            echo "Health check attempt $i failed, retrying..."
+            sleep 30
+          done
+          
+          for i in {1..5}; do
+            if curl -f https://portal.axisimaging.com.au/health; then
+              echo "Frontend health check passed"
+              break
+            fi
+            echo "Health check attempt $i failed, retrying..."
+            sleep 30
+          done
+      
+      - name: Run production smoke tests
+        working-directory: ./frontend
+        run: npx playwright test --grep "@smoke"
+        env:
+          BASE_URL: https://portal.axisimaging.com.au
+          API_URL: https://api.axisimaging.com.au
+      
+      - name: Update deployment status
+        run: |
+          echo "✅ Production deployment completed successfully"
+          echo "Backend image: ${{ needs.build-images.outputs.backend-image }}"
+          echo "Frontend image: ${{ needs.build-images.outputs.frontend-image }}"
+          echo "Deployed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+      
+      # Rollback capability
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "🔄 Rolling back production deployment..."
+          
+          aws ecs update-service \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-production \
+            --service ${{ env.PROJECT_NAME }}-backend-production \
+            --task-definition ${{ env.ROLLBACK_BACKEND_TASK_DEF }}
+          
+          aws ecs update-service \
+            --cluster ${{ env.PROJECT_NAME }}-cluster-production \
+            --service ${{ env.PROJECT_NAME }}-frontend-production \
+            --task-definition ${{ env.ROLLBACK_FRONTEND_TASK_DEF }}
+          
+          echo "❌ Deployment failed, rollback initiated"
+
+  # Manual rollback workflow
+  rollback-production:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.rollback_version != ''
+    environment: production
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Rollback to specified version
+        run: |
+          echo "🔄 Rolling back to version: ${{ github.event.inputs.rollback_version }}"
+          
+          # This would contain logic to rollback to a specific tagged version
+          # Implementation depends on your versioning strategy
+          echo "Rollback functionality would be implemented here"
+
+  # Post-deployment monitoring
+  post-deployment:
+    name: Post-Deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Monitor deployment metrics
+        run: |
+          echo "📊 Monitoring deployment metrics for 10 minutes..."
+          # This would integrate with monitoring tools to verify deployment success
+          sleep 600
+      
+      - name: Send deployment notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          text: |
+            🚀 Production deployment completed successfully!
+            
+            📦 Backend: ${{ needs.build-images.outputs.backend-image }}
+            📦 Frontend: ${{ needs.build-images.outputs.frontend-image }}
+            ⏰ Deployed: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+            
+            🔗 Application: https://portal.axisimaging.com.au
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: success()

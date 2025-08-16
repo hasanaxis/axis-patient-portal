@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Axis Imaging",
+    "slug": "axis-imaging",
+    "version": "1.0.0",
+    "description": "Axis Imaging Patient Portal - View your scan results and book appointments",
+    "keywords": ["medical", "radiology", "imaging", "healthcare", "axis"],
+    "privacy": "public",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#7c3aed"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.axisimaging.patientportal",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes and upload documents.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload medical documents.",
+        "NSHealthShareUsageDescription": "This app can share your medical imaging data with your healthcare providers.",
+        "NSHealthUpdateUsageDescription": "This app can update your health records with imaging results."
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#7c3aed"
+      },
+      "package": "com.axisimaging.patientportal",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ],
+      "playStoreUrl": "https://play.google.com/store/apps/details?id=com.axisimaging.patientportal"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
