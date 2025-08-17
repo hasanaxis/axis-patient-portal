@@ -14,6 +14,7 @@ import invitationRoutes from './routes/invitations';
 import patientRoutes from './routes/patients';
 import studyRoutes from './routes/studies';
 import bookingRoutes from './routes/booking';
+import mockFrontendRoutes from './routes/mock-frontend';
 
 // Initialize Prisma Client
 const prisma = new PrismaClient();
@@ -42,7 +43,7 @@ app.use(helmet({
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://portal.axisimaging.com.au', 'https://app.axisimaging.com.au']
-    : ['http://localhost:3000', 'http://localhost:3001'],
+    : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -111,6 +112,9 @@ app.use('/api/invitations', invitationRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/studies', studyRoutes);
 app.use('/api/booking', bookingRoutes);
+
+// Mock frontend routes for development
+app.use('/api', mockFrontendRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

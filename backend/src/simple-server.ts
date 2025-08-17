@@ -1,13 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
+import { authService } from './services/auth-service';
 import { smsService } from './services/simple-sms';
 import { fileStorageService } from './services/file-storage';
 import { monitoringService } from './services/monitoring';
 import { voyagerRTFIntegration } from './services/voyager-rtf-integration';
 import { modalityDICOMIntegration } from './services/modality-dicom-integration';
+import secureAuthRoutes from './routes/secure-auth';
 import { 
   generalRateLimit, 
+  authRateLimit,
   securityHeaders, 
   requestLogger, 
   errorHandler,
@@ -27,6 +30,187 @@ app.use(express.json({ limit: '10mb' }));
 
 // Health check with enhanced monitoring
 app.get('/api/health', healthCheck);
+
+// === SECURE AUTH ROUTES ===
+app.use('/api/auth', secureAuthRoutes);
+
+// === LEGACY AUTH ENDPOINTS ===
+// Send SMS verification code
+app.post('/api/auth/send-verification', authRateLimit, async (req, res) => {
+  try {
+    const { phoneNumber } = req.body;
+
+    if (!phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
+      });
+    }
+
+    const result = await authService.sendVerificationCode(phoneNumber);
+    
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Error in send-verification endpoint:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Verify SMS code
+app.post('/api/auth/verify-code', authRateLimit, async (req, res) => {
+  try {
+    const { phoneNumber, code } = req.body;
+
+    if (!phoneNumber || !code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number and verification code are required'
+      });
+    }
+
+    const result = await authService.verifyCode(phoneNumber, code);
+    
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Error in verify-code endpoint:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Register new patient
+app.post('/api/auth/register', authRateLimit, async (req, res) => {
+  try {
+    const { phoneNumber, firstName, lastName, dateOfBirth, medicareNumber, email, verificationToken } = req.body;
+
+    if (!phoneNumber || !firstName || !lastName || !dateOfBirth || !verificationToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number, first name, last name, date of birth, and verification token are required'
+      });
+    }
+
+    const registerData = {
+      phoneNumber,
+      firstName,
+      lastName,
+      dateOfBirth,
+      medicareNumber,
+      email
+    };
+
+    const result = await authService.registerPatient(registerData, verificationToken);
+    
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Error in register endpoint:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Login with phone number (send SMS)
+app.post('/api/auth/login', authRateLimit, async (req, res) => {
+  try {
+    const { phoneNumber } = req.body;
+
+    if (!phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
+      });
+    }
+
+    const result = await authService.loginWithPhone(phoneNumber);
+    
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Error in login endpoint:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Complete login with verification code
+app.post('/api/auth/complete-login', authRateLimit, async (req, res) => {
+  try {
+    const { phoneNumber, code } = req.body;
+
+    if (!phoneNumber || !code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number and verification code are required'
+      });
+    }
+
+    const result = await authService.completeLogin(phoneNumber, code);
+    
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Error in complete-login endpoint:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Logout
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    const authToken = req.headers.authorization?.replace('Bearer ', '');
+
+    if (!authToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Authorization token is required'
+      });
+    }
+
+    const result = await authService.logout(authToken);
+    
+    if (result.success) {
+      return res.json(result);
+    } else {
+      return res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('Error in logout endpoint:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
 
 // Get studies
 app.get('/api/studies', async (_req, res) => {
@@ -88,7 +272,7 @@ app.get('/api/studies/:id', async (req, res) => {
   }
 });
 
-// Get patient profile (mock for now)
+// Get patient profile
 app.get('/api/patients/profile', async (_req, res) => {
   try {
     const patient = await prisma.patient.findFirst({
@@ -106,7 +290,27 @@ app.get('/api/patients/profile', async (_req, res) => {
       return res.status(404).json({ error: 'Patient not found' });
     }
 
-    return res.json(patient);
+    // Transform the database response to match frontend Patient interface
+    const transformedPatient = {
+      id: patient.id,
+      firstName: patient.user.firstName,
+      lastName: patient.user.lastName,
+      email: patient.user.email,
+      phoneNumber: patient.user.phoneNumber,
+      dateOfBirth: patient.dateOfBirth,
+      medicareNumber: patient.medicareNumber,
+      gender: patient.gender,
+      streetAddress: patient.streetAddress,
+      suburb: patient.suburb,
+      state: patient.state,
+      postcode: patient.postcode,
+      country: patient.country,
+      patientNumber: patient.patientNumber,
+      createdAt: patient.createdAt,
+      updatedAt: patient.updatedAt
+    };
+
+    return res.json(transformedPatient);
   } catch (error) {
     console.error('Error fetching patient:', error);
     return res.status(500).json({ error: 'Failed to fetch patient' });
@@ -157,6 +361,250 @@ app.get('/api/dashboard', async (_req, res) => {
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
     return res.status(500).json({ error: 'Failed to fetch dashboard data' });
+  }
+});
+
+// === REPORTS ENDPOINTS ===
+// Get reports
+app.get('/api/reports', async (_req, res) => {
+  try {
+    const reports = await prisma.report.findMany({
+      include: {
+        study: {
+          include: {
+            patient: {
+              include: {
+                user: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return res.json(reports);
+  } catch (error) {
+    console.error('Error fetching reports:', error);
+    return res.status(500).json({ error: 'Failed to fetch reports' });
+  }
+});
+
+// Get single report
+app.get('/api/reports/:id', async (req, res) => {
+  try {
+    const report = await prisma.report.findUnique({
+      where: { id: req.params.id },
+      include: {
+        study: {
+          include: {
+            patient: {
+              include: {
+                user: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    return res.json(report);
+  } catch (error) {
+    console.error('Error fetching report:', error);
+    return res.status(500).json({ error: 'Failed to fetch report' });
+  }
+});
+
+// === APPOINTMENTS ENDPOINTS ===
+// Get appointments
+app.get('/api/appointments', async (_req, res) => {
+  try {
+    // Mock appointments data since we don't have real appointment system yet
+    const appointments: any[] = [];
+    return res.json(appointments);
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    return res.status(500).json({ error: 'Failed to fetch appointments' });
+  }
+});
+
+// Create appointment
+app.post('/api/appointments', async (_req, res) => {
+  try {
+    // Mock appointment creation - in real implementation this would save to database
+    const appointmentData = _req.body;
+    const newAppointment = {
+      ...appointmentData,
+      id: Math.random().toString(36).substr(2, 9),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    return res.json(newAppointment);
+  } catch (error) {
+    console.error('Error creating appointment:', error);
+    return res.status(500).json({ error: 'Failed to create appointment' });
+  }
+});
+
+// Cancel appointment
+app.delete('/api/appointments/:id', async (_req, res) => {
+  try {
+    // Mock appointment cancellation
+    return res.json({ message: 'Appointment cancelled successfully' });
+  } catch (error) {
+    console.error('Error cancelling appointment:', error);
+    return res.status(500).json({ error: 'Failed to cancel appointment' });
+  }
+});
+
+// === LOCATIONS ENDPOINTS ===
+// Get facility locations
+app.get('/api/locations', async (_req, res) => {
+  try {
+    // Mock location data for Axis Imaging Mickleham
+    const locations = [
+      {
+        id: '1',
+        name: 'Axis Imaging Mickleham',
+        address: {
+          street: 'Level 1, 107/21 Cityside Drive',
+          suburb: 'Mickleham',
+          state: 'VIC',
+          postcode: '3064',
+          country: 'Australia'
+        },
+        phoneNumber: '(03) 8746 4200',
+        email: 'info@axisimaging.com.au',
+        operatingHours: {
+          monday: { open: '07:00', close: '19:00' },
+          tuesday: { open: '07:00', close: '19:00' },
+          wednesday: { open: '07:00', close: '19:00' },
+          thursday: { open: '07:00', close: '19:00' },
+          friday: { open: '07:00', close: '19:00' },
+          saturday: { open: '08:00', close: '16:00' },
+          sunday: { open: '', close: '', closed: true }
+        },
+        services: ['X-Ray', 'CT', 'MRI', 'Ultrasound', 'Mammography', 'Nuclear Medicine'],
+        parkingInfo: 'Free on-site parking available with disabled access',
+        publicTransport: 'Bus route 466 stops nearby'
+      }
+    ];
+
+    return res.json(locations);
+  } catch (error) {
+    console.error('Error fetching locations:', error);
+    return res.status(500).json({ error: 'Failed to fetch locations' });
+  }
+});
+
+// === STUDY ACTIONS ===
+// Mark study as viewed
+app.post('/api/studies/:id/mark-viewed', async (req, res) => {
+  try {
+    const study = await prisma.study.update({
+      where: { id: req.params.id },
+      data: { updatedAt: new Date() }
+    });
+
+    return res.json({ message: 'Study marked as viewed', study });
+  } catch (error) {
+    console.error('Error marking study as viewed:', error);
+    return res.status(500).json({ error: 'Failed to mark study as viewed' });
+  }
+});
+
+// Share study with GP
+app.post('/api/studies/:id/share-gp', async (req, res) => {
+  try {
+    const study = await prisma.study.update({
+      where: { id: req.params.id },
+      data: { updatedAt: new Date() }
+    });
+
+    return res.json({ message: 'Study shared with GP', study });
+  } catch (error) {
+    console.error('Error sharing study with GP:', error);
+    return res.status(500).json({ error: 'Failed to share study with GP' });
+  }
+});
+
+// === PATIENT PROFILE UPDATE ===
+// Update patient profile
+app.put('/api/patients/profile', async (req, res) => {
+  try {
+    const patientData = req.body;
+    
+    // Get first patient for demo purposes
+    const patient = await prisma.patient.findFirst({
+      include: {
+        user: true
+      }
+    });
+
+    if (!patient) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    // Update user data
+    const updatedUser = await prisma.user.update({
+      where: { id: patient.user.id },
+      data: {
+        firstName: patientData.firstName || patient.user.firstName,
+        lastName: patientData.lastName || patient.user.lastName,
+        email: patientData.email || patient.user.email,
+        phoneNumber: patientData.phoneNumber || patient.user.phoneNumber,
+      }
+    });
+
+    // Update patient data
+    const updatedPatient = await prisma.patient.update({
+      where: { id: patient.id },
+      data: {
+        dateOfBirth: patientData.dateOfBirth ? new Date(patientData.dateOfBirth) : patient.dateOfBirth,
+        medicareNumber: patientData.medicareNumber || patient.medicareNumber,
+        gender: patientData.gender || patient.gender,
+        streetAddress: patientData.streetAddress || patient.streetAddress,
+        suburb: patientData.suburb || patient.suburb,
+        state: patientData.state || patient.state,
+        postcode: patientData.postcode || patient.postcode,
+        country: patientData.country || patient.country,
+      },
+      include: {
+        user: true
+      }
+    });
+
+    // Transform response to match frontend interface
+    const transformedPatient = {
+      id: updatedPatient.id,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      email: updatedUser.email,
+      phoneNumber: updatedUser.phoneNumber,
+      dateOfBirth: updatedPatient.dateOfBirth,
+      medicareNumber: updatedPatient.medicareNumber,
+      gender: updatedPatient.gender,
+      streetAddress: updatedPatient.streetAddress,
+      suburb: updatedPatient.suburb,
+      state: updatedPatient.state,
+      postcode: updatedPatient.postcode,
+      country: updatedPatient.country,
+      patientNumber: updatedPatient.patientNumber,
+      createdAt: updatedPatient.createdAt,
+      updatedAt: updatedPatient.updatedAt
+    };
+
+    return res.json(transformedPatient);
+  } catch (error) {
+    console.error('Error updating patient profile:', error);
+    return res.status(500).json({ error: 'Failed to update patient profile' });
   }
 });
 

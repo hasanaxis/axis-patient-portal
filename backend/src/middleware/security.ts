@@ -141,7 +141,7 @@ export const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     const allowedOrigins = config.NODE_ENV === 'production' 
       ? ['https://portal.axisimaging.com.au', 'https://app.axisimaging.com.au']
-      : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8081']
+      : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:8081']
     
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true)

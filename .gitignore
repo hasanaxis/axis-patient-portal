@@ -250,6 +250,10 @@ expo-env.d.ts
 .next/
 out/
 
+# Azure Deployment
+azure-deployment/
+swa-cli.config.json
+
 # Miscellaneous
 *.tgz
 *.tar.gz

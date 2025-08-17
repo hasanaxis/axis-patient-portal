@@ -12,7 +12,7 @@ import {
   Calendar,
   Phone
 } from 'lucide-react';
-import { usePatient } from '@/hooks/useApi';
+import { usePatient, useDashboard } from '@/hooks/useApi';
 
 const CleanDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -23,8 +23,9 @@ const CleanDashboard: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const menuDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Use the same patient data hook as Profile page
+  // Use real API data for production
   const { data: patient } = usePatient();
+  const { data: dashboardData, isLoading: isDashboardLoading, error: dashboardError } = useDashboard();
 
   // Fallback values if patient data is not loaded
   const firstName = patient?.firstName || 'Guest';
@@ -212,12 +213,6 @@ const CleanDashboard: React.FC = () => {
 
   const handleShare = (scan: any) => {
     // Create a modal or popup for sharing options
-    const shareData = {
-      scanId: scan.id,
-      title: scan.title,
-      date: scan.date,
-      modality: scan.modality
-    };
 
     // For now, we'll copy a share link to clipboard
     const shareUrl = `${window.location.origin}/scans/${scan.id}`;
@@ -246,65 +241,36 @@ const CleanDashboard: React.FC = () => {
     }
   };
 
-  const scans = [
-    {
-      id: 1,
-      title: 'X-Ray Right Ankle',
-      modality: 'X-Ray',
-      date: 'Aug 12, 2025',
-      description: 'Right ankle X-ray following injury to assess for fractures or bone displacement.',
-      thumbnail: '/test-images/ankle-xray-1-thumb.jpg',
-      isNew: false,
-      hasReport: true,
-      reportStatus: 'Final'
-    },
-    {
-      id: 2,
-      title: 'X-Ray Right Ankle - Lateral',
-      modality: 'X-Ray',
-      date: 'Aug 12, 2025',
-      description: 'Lateral view of right ankle for comprehensive fracture assessment.',
-      thumbnail: '/test-images/ankle-xray-2-thumb.jpg',
-      isNew: false,
-      hasReport: true,
-      reportStatus: 'Final'
-    },
-    {
-      id: 3,
-      title: 'CT Abdomen',
-      modality: 'CT',
-      date: 'Aug 08, 2025',
-      description: 'Abdominal CT scan with contrast to evaluate abdominal pain and digestive symptoms.',
-      thumbnail: 'https://via.placeholder.com/256x256/1a1a1a/666666?text=CT+Abdomen',
-      isNew: false,
-      hasReport: true,
-      reportStatus: 'Final'
-    },
-    {
-      id: 4,
-      title: 'CT Brain',
-      modality: 'CT',
-      date: 'Aug 05, 2025',
-      description: 'Brain CT scan to investigate headaches and rule out any structural abnormalities.',
-      thumbnail: 'https://via.placeholder.com/256x256/1a1a1a/666666?text=CT+Brain',
-      isNew: false,
-      hasReport: true,
-      reportStatus: 'Final'
-    },
-    {
-      id: 5,
-      title: 'Ultrasound Upper Abdomen',
-      modality: 'Ultrasound',
-      date: 'Aug 16, 2025',
-      description: 'Upper abdominal ultrasound to evaluate liver, gallbladder, and pancreas. Images completed, report pending.',
-      thumbnail: 'https://via.placeholder.com/256x256/1a1a1a/666666?text=US+Abdomen',
-      isNew: true,
-      hasReport: false,
-      reportStatus: 'Pending',
-      scanCompletedAt: '2:30 PM today',
-      estimatedReportTime: 'Within 24 hours'
-    }
-  ];
+
+  // For production, use real data or show empty state
+  const hasRealData = dashboardData && (dashboardData as any)?.recentStudies?.length > 0;
+  const rawScans = hasRealData ? (dashboardData as any).recentStudies : [];
+
+  // Transform real API data into the format expected by the UI
+  const scans = rawScans.map((study: any) => {
+    const studyDate = new Date(study.studyDate || study.date);
+    const daysSinceStudy = Math.floor((Date.now() - studyDate.getTime()) / (1000 * 60 * 60 * 24));
+    const isNew = daysSinceStudy <= 7 && !study.viewedAt;
+    
+    return {
+      id: study.id,
+      title: study.description || study.studyDescription || `${study.modality} Scan`,
+      modality: study.modality,
+      date: studyDate.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      }),
+      description: `${study.modality} examination`,
+      thumbnail: study.series?.[0]?.images?.[0]?.thumbnailUrl || 
+                `https://via.placeholder.com/256x256/1a1a1a/666666?text=${study.modality}+Scan`,
+      isNew: isNew,
+      hasReport: study.reportAvailable !== false,
+      reportStatus: study.status || 'COMPLETED',
+      daysSinceStudy: daysSinceStudy,
+      viewedAt: study.viewedAt
+    };
+  }) || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -436,7 +402,29 @@ const CleanDashboard: React.FC = () => {
 
       {/* Scans List */}
       <div className="px-4 md:px-12 pb-6 overflow-visible">
-        {scans.map((scan) => (
+        {isDashboardLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading your scans...</p>
+            </div>
+          </div>
+        ) : scans.length === 0 ? (
+          <div className="bg-white rounded-xl p-8 text-center">
+            <div className="text-6xl mb-4">🏥</div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Scans Available</h3>
+            <p className="text-gray-600 mb-6">
+              Your scan results will appear here when they become available from Axis Imaging.
+            </p>
+            <button 
+              onClick={() => navigate('/book')}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-300"
+            >
+              Book New Appointment
+            </button>
+          </div>
+        ) : (
+          scans.map((scan: any) => (
           <div key={scan.id} className="bg-white rounded-xl mb-4 shadow-sm relative">
             <div className="flex">
               {/* Thumbnail */}
@@ -455,13 +443,26 @@ const CleanDashboard: React.FC = () => {
               {/* Content */}
               <div className="flex-1 p-3 md:p-4">
                 <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h3 className="font-semibold text-base md:text-lg">{scan.title}</h3>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-base md:text-lg">{scan.title}</h3>
+                      {scan.isNew && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-purple-500 to-pink-500 text-white animate-pulse">
+                          NEW
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
                       <span className="flex items-center gap-1">
                         <span className="text-lg">🩻</span> {scan.modality}
                       </span>
                       <span>{scan.date}</span>
+                      {scan.daysSinceStudy === 0 && (
+                        <span className="text-purple-600 font-medium">Today</span>
+                      )}
+                      {scan.daysSinceStudy === 1 && (
+                        <span className="text-purple-600 font-medium">Yesterday</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -470,16 +471,16 @@ const CleanDashboard: React.FC = () => {
                   {scan.description}
                 </p>
                 
-                {/* Status Badge for New/Pending */}
+                {/* Status Badge for New/Pending with Axis Branding */}
                 {(scan.isNew || scan.reportStatus === 'Pending') && (
-                  <div className="mb-3">
+                  <div className="mb-3 flex flex-wrap gap-2">
                     {scan.isNew && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2">
-                        🆕 New Images
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm">
+                        ✨ NEW
                       </span>
                     )}
                     {scan.reportStatus === 'Pending' && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
                         ⏳ Report Pending
                       </span>
                     )}
@@ -598,7 +599,7 @@ const CleanDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        ))}
+        )))}
       </div>
 
       {/* Share Modal */}

@@ -1,0 +1,19 @@
+{
+  "name": "axis-imaging-api",
+  "version": "1.0.0",
+  "description": "Axis Imaging Patient Portal API - Production",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "npx prisma generate"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "@prisma/client": "^5.17.0",
+    "prisma": "^5.17.0"
+  }
+}

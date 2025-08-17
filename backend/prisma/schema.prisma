@@ -3,27 +3,41 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ===== SIMPLE MODELS FOR DEVELOPMENT =====
 
 model User {
   id          String   @id @default(cuid())
-  email       String   @unique
+  email       String?  @unique
   firstName   String
   lastName    String
   phoneNumber String   @unique
-  passwordHash String
+  passwordHash String?
   isVerified  Boolean  @default(false)
   role        String   @default("PATIENT") // PATIENT, ADMIN, STAFF
+  
+  // 2FA Settings
+  twoFactorEnabled Boolean @default(false)
+  twoFactorMethod  String? // SMS, AUTHENTICATOR_APP
+  twoFactorSecret  String?
+  
+  // Registration tracking
+  invitedAt       DateTime?
+  registeredAt    DateTime?
+  lastLoginAt     DateTime?
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
   // Relations
   patient     Patient?
   sessions    Session[]
+  verificationCodes VerificationCode[]
+  invitations PatientInvitation[]
 }
 
 model Patient {
@@ -157,4 +171,59 @@ model Session {
   
   // Relations
   user         User      @relation(fields: [userId], references: [id])
+}
+
+// Verification codes for SMS/Email OTP
+model VerificationCode {
+  id          String   @id @default(cuid())
+  userId      String?
+  phoneNumber String?
+  email       String?
+  code        String
+  type        String   // REGISTRATION, LOGIN, PASSWORD_RESET, TWO_FACTOR
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(3)
+  isUsed      Boolean  @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  user        User?    @relation(fields: [userId], references: [id])
+  
+  @@index([phoneNumber, code])
+  @@index([email, code])
+}
+
+// Patient invitations from RIS
+model PatientInvitation {
+  id                String   @id @default(cuid())
+  patientNumber     String   @unique
+  phoneNumber       String
+  dateOfBirth       DateTime
+  firstName         String
+  lastName          String
+  studyAccessionNumber String?
+  risMessageId      String?  @unique
+  
+  // Invitation tracking
+  invitationToken   String   @unique
+  invitationUrl     String
+  smsSentAt         DateTime?
+  smsDeliveredAt    DateTime?
+  clickedAt         DateTime?
+  registeredAt      DateTime?
+  
+  // Status
+  status            String   @default("PENDING") // PENDING, SMS_SENT, CLICKED, REGISTERED, EXPIRED
+  expiresAt         DateTime
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id])
+  
+  @@index([phoneNumber, dateOfBirth])
+  @@index([invitationToken])
 }

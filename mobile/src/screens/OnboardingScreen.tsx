@@ -60,6 +60,27 @@ export const OnboardingScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* App Store Badges */}
+          <View style={styles.badgeContainer}>
+            <Text style={styles.badgeText}>Download our mobile app</Text>
+            <View style={styles.badgeRow}>
+              <TouchableOpacity style={styles.badge} activeOpacity={0.8}>
+                <Image
+                  source={require('../assets/download-on-the-app-store-apple-logo.svg')}
+                  style={styles.badgeImage}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.badge} activeOpacity={0.8}>
+                <Image
+                  source={require('../assets/Google_Play-Badge-Logo.wine.svg')}
+                  style={styles.badgeImage}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* Action buttons */}
           <View style={styles.actionContainer}>
             <TouchableOpacity
@@ -186,6 +207,29 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     opacity: 0.8,
     fontFamily: 'System',
+  },
+  badgeContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  badgeText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    opacity: 0.8,
+    marginBottom: 12,
+    fontFamily: 'System',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 16,
+    alignItems: 'center',
+  },
+  badge: {
+    opacity: 0.9,
+  },
+  badgeImage: {
+    width: 120,
+    height: 40,
   },
   actionContainer: {
     paddingBottom: 40,

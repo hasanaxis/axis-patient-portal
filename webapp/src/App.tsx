@@ -6,9 +6,13 @@ import LoadingSpinner from '@/components/common/LoadingSpinner'
 import SplashScreen from '@/components/auth/SplashScreen'
 import OnboardingScreen from '@/components/auth/OnboardingScreen'
 import LoginScreen from '@/components/auth/LoginScreen'
+import PatientOnboarding from '@/components/auth/PatientOnboarding'
+import PatientRegistration from '@/components/auth/PatientRegistration'
+import SecureLoginScreen from '@/components/auth/SecureLoginScreen'
 import CleanDashboard from '@/pages/CleanDashboard'
 import ScanDetailView from '@/pages/ScanDetailView'
 import DicomViewer from '@/pages/DicomViewer'
+import AuthTest from '@/pages/AuthTest'
 
 // Lazy load remaining pages
 const BookAppointment = React.lazy(() => import('@/pages/BookAppointment'))
@@ -28,8 +32,13 @@ function App() {
     <Routes>
       {/* Auth Flow Routes */}
       <Route path="/splash" element={<SplashScreen />} />
-      <Route path="/onboarding" element={<OnboardingScreen />} />
-      <Route path="/login" element={<LoginScreen />} />
+      <Route path="/onboarding" element={<PatientOnboarding />} />
+      <Route path="/register" element={<PatientRegistration />} />
+      <Route path="/login" element={<SecureLoginScreen />} />
+      
+      {/* Legacy routes for backward compatibility */}
+      <Route path="/old-onboarding" element={<OnboardingScreen />} />
+      <Route path="/old-login" element={<LoginScreen />} />
       
       {/* Main Dashboard */}
       <Route path="/dashboard" element={<CleanDashboard />} />
@@ -37,6 +46,9 @@ function App() {
       {/* Scan Routes */}
       <Route path="/scans/:scanId" element={<ScanDetailView />} />
       <Route path="/scans/:scanId/viewer" element={<DicomViewer />} />
+      
+      {/* Auth Test Route */}
+      <Route path="/auth-test" element={<AuthTest />} />
       
       {/* Other Routes */}
       <Route 

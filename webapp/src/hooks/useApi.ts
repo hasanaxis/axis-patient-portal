@@ -1,14 +1,6 @@
 // React Query hooks for API calls
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
-import { 
-  mockPatient, 
-  mockStudies, 
-  mockReports, 
-  mockAppointments, 
-  mockLocations,
-  mockDashboardStats 
-} from '@/api/mock-data'
 import type { 
   Patient, 
   Study, 
@@ -37,22 +29,7 @@ export const usePatient = () => {
   return useQuery({
     queryKey: queryKeys.patient,
     queryFn: async (): Promise<Patient> => {
-      try {
-        return await apiClient.get<Patient>('/patients/profile')
-      } catch (error) {
-        console.warn('API call failed, using mock data:', error)
-        
-        // Check localStorage for saved profile data
-        const savedProfile = localStorage.getItem('userProfile')
-        if (savedProfile) {
-          const parsedProfile = JSON.parse(savedProfile)
-          // Merge with mock data to ensure all fields are present
-          Object.assign(mockPatient, parsedProfile)
-        }
-        
-        // Fallback to mock data if API fails
-        return mockPatient
-      }
+      return await apiClient.get<Patient>('/patients/profile')
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
@@ -63,19 +40,9 @@ export const useUpdatePatient = () => {
   
   return useMutation({
     mutationFn: async (patient: Partial<Patient>): Promise<Patient> => {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Update the mock patient data to persist changes
-      Object.assign(mockPatient, patient)
-      
-      // Also save to localStorage for persistence across sessions
-      localStorage.setItem('userProfile', JSON.stringify(mockPatient))
-      
-      return mockPatient
+      return await apiClient.put<Patient>('/patients/profile', patient)
     },
     onSuccess: (updatedPatient) => {
-      // Update the cache directly with the new data
       queryClient.setQueryData(queryKeys.patient, updatedPatient)
       queryClient.invalidateQueries({ queryKey: queryKeys.patient })
     },
@@ -87,53 +54,10 @@ export const useStudies = (filters?: FilterOptions) => {
   return useQuery({
     queryKey: [...queryKeys.studies, filters],
     queryFn: async (): Promise<Study[]> => {
-      try {
-        const studies = await apiClient.get<Study[]>('/studies', filters)
-        return studies.sort((a, b) => 
-          new Date(b.studyDate).getTime() - new Date(a.studyDate).getTime()
-        )
-      } catch (error) {
-        console.warn('API call failed, using mock data:', error)
-        // Fallback to mock data with client-side filtering
-        let filteredStudies = [...mockStudies]
-        
-        if (filters?.searchTerm) {
-          const searchLower = filters.searchTerm.toLowerCase()
-          filteredStudies = filteredStudies.filter(study =>
-            study.studyDescription.toLowerCase().includes(searchLower) ||
-            study.bodyPartExamined.toLowerCase().includes(searchLower) ||
-            study.accessionNumber.toLowerCase().includes(searchLower)
-          )
-        }
-        
-        if (filters?.modality?.length) {
-          filteredStudies = filteredStudies.filter(study =>
-            filters.modality!.includes(study.modality)
-          )
-        }
-        
-        if (filters?.status?.length) {
-          filteredStudies = filteredStudies.filter(study =>
-            filters.status!.includes(study.status as any)
-          )
-        }
-        
-        if (filters?.dateFrom) {
-          filteredStudies = filteredStudies.filter(study =>
-            new Date(study.studyDate) >= filters.dateFrom!
-          )
-        }
-        
-        if (filters?.dateTo) {
-          filteredStudies = filteredStudies.filter(study =>
-            new Date(study.studyDate) <= filters.dateTo!
-          )
-        }
-        
-        return filteredStudies.sort((a, b) => 
-          new Date(b.studyDate).getTime() - new Date(a.studyDate).getTime()
-        )
-      }
+      const studies = await apiClient.get<Study[]>('/studies', filters)
+      return studies.sort((a, b) => 
+        new Date(b.studyDate).getTime() - new Date(a.studyDate).getTime()
+      )
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
   })
@@ -143,12 +67,7 @@ export const useStudy = (id: string) => {
   return useQuery({
     queryKey: queryKeys.study(id),
     queryFn: async (): Promise<Study | undefined> => {
-      try {
-        return await apiClient.get<Study>(`/studies/${id}`)
-      } catch (error) {
-        console.warn('API call failed, using mock data:', error)
-        return mockStudies.find(study => study.id === id)
-      }
+      return await apiClient.get<Study>(`/studies/${id}`)
     },
     enabled: !!id,
   })
@@ -159,20 +78,8 @@ export const useReports = (filters?: FilterOptions) => {
   return useQuery({
     queryKey: [...queryKeys.reports, filters],
     queryFn: async (): Promise<Report[]> => {
-      await new Promise(resolve => setTimeout(resolve, 600))
-      
-      let filteredReports = [...mockReports]
-      
-      if (filters?.searchTerm) {
-        const searchLower = filters.searchTerm.toLowerCase()
-        filteredReports = filteredReports.filter(report =>
-          report.findings.toLowerCase().includes(searchLower) ||
-          report.impression.toLowerCase().includes(searchLower) ||
-          report.reportNumber.toLowerCase().includes(searchLower)
-        )
-      }
-      
-      return filteredReports.sort((a, b) => 
+      const reports = await apiClient.get<Report[]>('/reports', filters)
+      return reports.sort((a, b) => 
         new Date(b.approvedAt || b.createdAt).getTime() - 
         new Date(a.approvedAt || a.createdAt).getTime()
       )
@@ -185,8 +92,7 @@ export const useReport = (id: string) => {
   return useQuery({
     queryKey: queryKeys.report(id),
     queryFn: async (): Promise<Report | undefined> => {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      return mockReports.find(report => report.id === id)
+      return await apiClient.get<Report>(`/reports/${id}`)
     },
     enabled: !!id,
   })
@@ -197,8 +103,8 @@ export const useAppointments = () => {
   return useQuery({
     queryKey: queryKeys.appointments,
     queryFn: async (): Promise<Appointment[]> => {
-      await new Promise(resolve => setTimeout(resolve, 600))
-      return mockAppointments.sort((a, b) => 
+      const appointments = await apiClient.get<Appointment[]>('/appointments')
+      return appointments.sort((a, b) => 
         new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime()
       )
     },
@@ -211,16 +117,7 @@ export const useCreateAppointment = () => {
   
   return useMutation({
     mutationFn: async (appointment: Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Appointment> => {
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      const newAppointment: Appointment = {
-        ...appointment,
-        id: Math.random().toString(36).substr(2, 9),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-      
-      return newAppointment
+      return await apiClient.post<Appointment>('/appointments', appointment)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments })
@@ -233,8 +130,7 @@ export const useCancelAppointment = () => {
   
   return useMutation({
     mutationFn: async (appointmentId: string): Promise<void> => {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      // Simulate cancellation
+      await apiClient.delete(`/appointments/${appointmentId}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments })
@@ -247,8 +143,7 @@ export const useLocations = () => {
   return useQuery({
     queryKey: queryKeys.locations,
     queryFn: async (): Promise<FacilityLocation[]> => {
-      await new Promise(resolve => setTimeout(resolve, 300))
-      return mockLocations
+      return await apiClient.get<FacilityLocation[]>('/locations')
     },
     staleTime: 10 * 60 * 1000, // 10 minutes - locations don't change often
   })
@@ -259,17 +154,7 @@ export const useDashboard = () => {
   return useQuery({
     queryKey: queryKeys.dashboard,
     queryFn: async () => {
-      try {
-        return await apiClient.get('/dashboard')
-      } catch (error) {
-        console.warn('API call failed, using mock data:', error)
-        return {
-          stats: mockDashboardStats,
-          recentStudies: mockStudies.slice(0, 3),
-          upcomingAppointments: mockAppointments.slice(0, 2),
-          pendingReports: mockReports.filter(r => r.status === 'PENDING').slice(0, 2)
-        }
-      }
+      return await apiClient.get('/dashboard')
     },
     staleTime: 1 * 60 * 1000, // 1 minute
   })
@@ -281,8 +166,7 @@ export const useMarkStudyViewed = () => {
   
   return useMutation({
     mutationFn: async (studyId: string): Promise<void> => {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      // Simulate marking as viewed
+      await apiClient.post(`/studies/${studyId}/mark-viewed`)
     },
     onSuccess: (_, studyId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.study(studyId) })
@@ -297,8 +181,7 @@ export const useShareWithGP = () => {
   
   return useMutation({
     mutationFn: async (studyId: string): Promise<void> => {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      // Simulate sharing with GP
+      await apiClient.post(`/studies/${studyId}/share-gp`)
     },
     onSuccess: (_, studyId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.study(studyId) })
