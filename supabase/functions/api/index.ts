@@ -224,20 +224,35 @@ serve(async (req) => {
 
       case path === '/api/modality/dicom' && req.method === 'POST':
         const dicomData = await req.json()
-        console.log('Modality DICOM webhook received:', dicomData)
+        console.log('Enhanced DICOM webhook received:', dicomData)
 
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: 'DICOM data received successfully',
-            timestamp: new Date().toISOString(),
-            integration: 'modality-dicom',
-            status: 'ready'
-          }),
-          {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        )
+        // Import enhanced DICOM handler
+        const { handleDICOMWebhook } = await import('./enhanced-dicom-handler.ts')
+        
+        try {
+          const result = await handleDICOMWebhook(req, supabase)
+          return new Response(
+            JSON.stringify(result),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          )
+        } catch (error) {
+          console.error('Enhanced DICOM processing error:', error)
+          return new Response(
+            JSON.stringify({
+              success: false,
+              message: 'Enhanced DICOM processing failed',
+              error: error.message,
+              timestamp: new Date().toISOString(),
+              integration: 'modality-dicom-enhanced'
+            }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          )
+        }
 
       case path === '/api/sms/send' && req.method === 'POST':
         const smsData = await req.json()
